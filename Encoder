@@ -1,0 +1,388 @@
+//Akeem A. Wilkins
+//CSC 430-Project 2 "Error Detection and Correction"
+//December2, 2018
+#include <iostream>
+#include <string>
+#include <math.h>
+#include <fstream>
+
+using namespace std;
+
+class encoder
+{
+public:
+	
+	void load();
+	
+	void encode_LinHam();
+	void PBfinder();
+	void PBinitalize();
+	
+	void encode_2DP();
+	void setDimensions();		//Sets dimensions of parity grid
+	void horizontalP();
+	void verticalP();
+	
+	
+	
+	encoder();
+	
+private:			
+	string data; 			//Variable holds data string that will not be altered
+	string input;
+	string encoded;		//Variable holds data string that will be encoded
+	int counter;	//Holds value of bits to check in a sequence before skipping bit
+	int checkOnes;		//Counts number of ones encountered in a sequence
+	
+	int stringPos;						//Variable holds position in string to change value
+	int exp;						//Records exp of 2^x
+	
+	int gridL;
+	int gridH;
+	string parity[1025];
+
+};
+
+encoder::encoder()
+{
+	//data = "10011010";	// Parity expected _ _ 1 _ 1001 _ 1010
+	//data = "1001101010011011100110101001101110011010";
+	counter = 0;
+	checkOnes = 0;
+}
+
+int menu()
+{
+	int userInput;
+
+	cout << "Welcome to our encoder! " << endl;
+	cout << "Select (0) if you would like to implement Hamming and (1) if you would like to implement 2D Parity " << endl;
+	
+	cout << "\nOption Chosen: ";
+
+	cin >> userInput;
+
+	return userInput;
+}
+
+void encoder::load()
+{
+	string fileName;
+	fstream infile;
+	
+	cout << "Enter the data file to load (i.e. test.data): ";
+	cin >> fileName;
+	
+	infile.open(fileName.c_str());
+	
+	while (!infile.eof())		
+	{
+		infile >> input;						//Build list in order
+	}
+	
+	infile.close();
+	
+	data = input;
+	
+	cout << "\n\nData to Encode: " << data << endl;		//Output binary string to encode: 
+}
+
+void encoder::PBfinder()
+{
+	encoded = input;
+	
+	//Determine where to place parity bits
+	for(int i = 0; i < encoded.length(); i++)
+	{		
+		//Square i to determine stringPos
+		stringPos = pow(2, i);
+		
+		//Decrease stringPos as string start at 0 (not 1)
+		stringPos--;
+		
+		//break encoding loop if position is greater than data length
+		if(stringPos > encoded.length())
+		{
+			break;
+		}
+		
+		//Insert '_' into each place to include parity bit
+		encoded.insert(stringPos, "_");
+	}
+	
+	//cout << "Data after adding '_': " << encoded << endl;
+}
+
+void encoder::PBinitalize()
+{
+	int initPlace;					//Initial Place of string as stringPos gets changed
+	size_t found;
+	
+		//Determine parity bit values
+	for(int i = 0; i < encoded.length(); i++)
+	{	
+		
+		//Square i to determine exp
+		exp = pow(2, i);
+		
+		//Minus 1 to get position
+		stringPos = exp - 1;
+		
+		//Set the initial place that does not get altered
+		initPlace = stringPos;
+		
+		//Checks (2^i) bits then skips (2^i)
+		while(stringPos < encoded.length())
+		{
+			while(counter < exp)
+			{
+				//If 1 encountered, increase once counter
+				if(encoded[stringPos] == '1')
+					checkOnes++;
+				
+				//Progress sequence counter forward and place in string forward
+				counter++;
+				stringPos++;
+			}
+			
+			//Skip forward (2^i) bits
+			stringPos = stringPos + exp;
+			//Reset sequence counter to 0
+			counter = 0;
+		}
+		
+		
+		//If checkOnes is even then place a 0
+		if (((checkOnes % 2) == 0) && (checkOnes != 0))
+		{
+				found = encoded.find('_');
+				encoded.at(found) = '0';
+		}
+		//If checkOnes is odd then place a 1
+		else if ((checkOnes % 2) == 1)
+		{
+			found = encoded.find('_');
+			encoded.at(found) = '1';			
+		}
+				
+		//Reset once counter after checking bits for that position
+		checkOnes = 0;
+	}	
+}
+
+void encoder::encode_LinHam()
+{
+	PBfinder();
+	PBinitalize();
+	
+	cout << "Encoded data using Hamming Code: " << endl;
+	for(int i = 0; i < encoded.length(); i++)
+	{
+		cout << encoded.at(i);
+		if((i + 1) % 4 == 0)
+			cout << " ";
+	}
+	
+	cout << endl << endl;
+}
+
+void encoder::setDimensions()
+{
+
+	bool lengthCheck = false;			//validate length of string
+	int temp;
+	
+	//length check ensure string length between 4 - 1024
+	if(data.length() >= 4 && data.length() <= 1024)
+		lengthCheck = true;
+	
+	if(lengthCheck == true)
+	{
+		//Set Length (longest possible number)
+		for(int i = 8; i > 1; i--)
+		{
+			temp = data.length() % i;
+			if(temp == 0)
+			{
+				gridL = i;
+				break;
+			}
+		}
+		
+		//Set Width (Smalles possible number)
+		for(int i = 1; i < 10; i++)
+		{
+			temp = gridL * i;
+			if(temp == data.length())
+			{
+				gridH = i;
+				break;
+			}
+		}
+	}
+	
+	else
+	{
+		cout << "Data String ("<< data <<") is not in the 4 - 1024 range. \n Please enter data string in that range!" << endl;	
+		system("pause");
+		menu();
+	}
+
+	//cout << "Length: " << gridL << "	Width: " << gridH << endl;	
+}
+
+void encoder::horizontalP()
+{
+	string temp;
+	
+	//Loop cycles through each string index of parity Array
+	for(int i = 0; i < gridH; i++)
+	{	
+		//Loop cycles through each character of string at current index
+		for(int charPlace = 0; charPlace < parity[i].length(); charPlace++){
+			
+			//Assign current char to temp
+			temp = parity[i].at(charPlace);
+		
+			//if char equivalent to 1 then increase checkOnes
+			if(temp == "1")
+				checkOnes++;
+		}		
+		
+		//Determine parity to assign and append to end of grid		
+		if (((checkOnes % 2) == 0) && (checkOnes != 0)){
+			stringPos = parity[i].length() + 1;
+			parity[i].append("0");
+		}
+		else if ((checkOnes % 2) == 1)
+		{
+			stringPos = parity[i].length() + 1;
+			parity[i].append("1");
+		}
+		
+		//Reset checkOnes when move on to next string in array
+		checkOnes = 0;
+	}
+}
+void encoder::verticalP()
+{
+	int charPlace = 0;		//Place of character in string
+	string temp;			//Holds temp value of character
+	
+	//Re-initialize Variables
+	stringPos = gridH;		//Inset parity bits on last row of array
+	gridH++;			//Increase size of grid
+	
+	//Loops to calculate vertical parity
+	for(int i = 0; i < gridL + 1; i++)
+	{	
+		for(int charPlace = 0; charPlace < stringPos; charPlace++)
+		{
+			temp = parity[charPlace].at(i);
+
+			if(temp == "1")
+				checkOnes++;
+		}		
+				
+		if ((checkOnes % 2) == 0) {
+			if(parity[stringPos] == "")
+				parity[stringPos].insert(0,"0");
+			else
+				parity[stringPos].append("0");
+		}
+		else if ((checkOnes % 2) == 1)
+		{
+			if(parity[stringPos] == "")
+				parity[stringPos].insert(0,"1");
+			else
+				parity[stringPos].append("1");
+
+		}
+		checkOnes = 0;
+	}
+	
+	//Progress place in string forward
+	while(parity[charPlace] != "")
+	{
+		charPlace++;
+	}	
+}
+void encoder::encode_2DP()
+{
+	int index = 0;			//Place in array to assign string of bits
+	string temp = "";		//Forms horizontal rows 
+	int sizeCounter = 0;	//Keeps track of string size
+	checkOnes = 0;	
+	
+	//Set Grid Dimensions
+	setDimensions();
+	
+	//Assign to array
+	for(int i = 0; i < data.length(); i++)
+	{
+		temp = temp + data.at(i);
+		//sizeCounter++;
+		
+		if(temp.length() == gridL)
+		{
+			parity[index] = temp;
+			index++;
+			
+			//Reset values
+			temp = "";
+			//sizeCounter = 0;
+		}
+	}
+	
+	//Caculate Horizontal Parity
+	horizontalP();
+	
+	//Calculate Vertical Parity
+	verticalP();
+	
+	//Print Parity Array
+	cout << "\nEncoded data using 2D Parity: " << endl;
+	for(int i = 0; i < gridH; i++)
+	{
+		cout << parity[i] << " ";
+	}
+	cout << "\n\n";	
+}
+
+int main()
+{
+	encoder e;
+	int choice;
+	char userInput;
+
+	do {
+		choice = menu();
+
+		if (choice == 0)
+		{
+			e.load();
+			e.encode_LinHam();
+		}
+			
+		else
+		{
+			e.load();
+			e.encode_2DP();
+		}
+			
+
+		cout << "Would you like to try another number? (Y)es or (N)o" << endl;
+		cin >> userInput;
+		userInput = (toupper(userInput));
+		
+		if(userInput == 'Y')
+			system("cls");
+			
+	} while (userInput == 'Y');
+
+	system("pause");
+	return 0;
+	
+}
+
+
