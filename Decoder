@@ -1,0 +1,520 @@
+//Akeem A. Wilkins
+//CSC 430-Project 2 "Error Detection and Correction"
+//November 30, 2018
+#include <iostream>
+#include <string>
+#include <fstream>
+#include <math.h>
+
+using namespace std;
+
+class decoder
+{
+public:
+	void loadFile();
+	
+	void decode_Hamming();
+	void detect_badBits();
+	void BadBits_Fixed();
+	void remove_parityBits();
+	
+	void dec2D_Parity();
+	void setDimensions();
+	void check_Vertical();
+	void check_Horizontal();
+	void correct_2DParity();
+	void print_Original();
+
+	decoder();
+	
+
+private:
+	string data; 
+	string decodedData;
+	string encodedData;
+	
+	int pos;
+	int power;
+	char temp;
+	
+	int Counting_ones;	
+	int numBadBits;
+	int badBitPlace;
+	
+	int hor_badBits;
+	int vertical_badBits;
+	int posBad_Bit;
+	int posBad_BitVertical;
+	
+	int gridLength;
+	int gridHeight;
+	string parity_Array[1030];
+
+};
+
+decoder::decoder(){
+	//data = "011100101010";	// Data expected 110011010
+	temp = ' ';
+	decodedData = ":";
+	numBadBits = 0;
+	hor_badBits = 0;
+	vertical_badBits = 0;
+
+}
+
+int menu(){
+	
+	int userChoice;
+
+	cout << "Please select an option:" << endl;
+	cout << "(0) Hamming" << endl;
+	cout << "(1) 2D Parity" << endl;
+	
+	cout << "\nOption Chosen: ";
+
+	cin >> userChoice;
+
+	return userChoice;
+}
+
+void decoder::loadFile()
+{
+	string fileName;
+	fstream infile;
+	
+	cout << "Please enter the data file to load: ";
+	cin >> fileName;
+	//fileName = "d_2D.txt";
+	
+	infile.open(fileName.c_str());
+	
+	while (!infile.eof())		
+	{
+		infile >> data;						//Build list in order
+	}
+	
+	infile.close();
+	
+	cout << "\n\nData to Decode: " << data << endl;		//Output binary string to encode: 
+}
+
+void decoder::detect_badBits()
+{
+	int sequenceCounter = 0;
+	int charPlace;
+	int initPlace;
+	int firstBit = 0;
+	
+	encodedData = data;
+
+	//Determine where to charPlace parity bits
+	Counting_ones = 0;
+	//string data = paritySequence;
+	
+	//char bitChange;
+	int index = 0;
+	char temp;
+		
+	for(int i = 0; i < encodedData.length(); i++){	
+		
+		//Square i to determine charPlace (subtract 1 as dealing with strings)
+		power = pow(2, i);
+		charPlace = power - 1;
+
+		//Set an untouched initial place
+		initPlace = charPlace;
+		
+		//break encoding loop if position is greater than data length
+		if(power > encodedData.length())
+		{
+			break;
+		}
+		
+		//Add parity bit place to decoded estring
+		temp = encodedData.at(charPlace);
+		decodedData = decodedData + temp;
+		
+		//Count number of 1s encountered from current possition in string
+		while(charPlace < encodedData.length())
+		{
+			//Check # bits, skip # bits
+			while(sequenceCounter < power)
+			{
+				if(encodedData[charPlace] == '1')
+				{
+
+					if(firstBit == 1)
+						Counting_ones++;
+				}
+				
+				//Set initialBit = false after first path
+				sequenceCounter++;
+				charPlace++;
+				firstBit = 1;			//States no longer first bit
+			}
+			
+			charPlace = charPlace + power;
+			sequenceCounter = 0;
+
+		}
+		
+		//Detecting bad bit
+		char checkValue = encodedData.at(initPlace);
+		
+		bool flag = false;
+		
+		//Check if bit = 0, then it meets even parity requirements
+		if((checkValue == '0') && (Counting_ones % 2 == 0))
+		{
+			flag = true;
+		}
+		
+		//Check if bit = 1, then meets even parity requirements
+		else if((checkValue == '1') && (Counting_ones % 2 == 1))
+		{
+			flag = true;
+		}
+		
+		//Record bad bit place in string
+		if(flag == false)
+		{
+			
+			badBitPlace = badBitPlace + initPlace;
+			numBadBits++;
+		}
+
+		//Reset Variables
+		Counting_ones = 0;
+		flag = false;
+		firstBit = 0;
+	}
+}
+
+void decoder::BadBits_Fixed()
+{
+	if(numBadBits > 0)
+	{	
+	
+		badBitPlace++;
+		//Correct All Errors		
+	 	//go to loaction of bad bit and invert bad bit
+	 	
+		if(encodedData.at(badBitPlace) == '1')
+			encodedData.at(badBitPlace) = '0';
+			
+		else if(encodedData.at(badBitPlace) == '0')
+			encodedData.at(badBitPlace) = '1';	
+					
+			cout << "The corrected encoded Hamming string: " << encodedData << endl;
+	}
+	else
+		cout << "Decoded Hamming string CODEWORD: " << encodedData << endl;
+
+}
+
+void decoder::remove_parityBits()
+{
+	data = encodedData;
+	
+	//Remove checkbits
+	int startingPlace = log2(data.length());
+	
+	for(int i = startingPlace; i >= 0 ; i--)
+	{	
+		
+		//Square i to determine place
+		power = pow(2, i);
+		pos = power - 1;
+	
+		if(pos > encodedData.length()){
+			break;
+		}
+		
+		data.erase(pos, 1);
+	}
+}
+
+void decoder::decode_Hamming()
+{
+	//cout << "\nData to decode: " << data << endl;
+
+	detect_badBits();
+	BadBits_Fixed();
+	remove_parityBits();
+	
+	data = data + decodedData;
+	cout<<"The decoded CODEWORD: "<<data<<endl;
+}
+
+void decoder::setDimensions()
+{
+
+	bool lengthCheck = false;			//validate length of string
+	int temp;
+	
+	//length check ensure string length between 4 - 1024
+	if(data.length() >= 4 && data.length() <= 1024)
+		lengthCheck = true;
+	
+	if(lengthCheck == true)
+	{
+		//Set Length (longest possible number)
+		for(int i = 8; i > 1; i--)
+		{
+			temp = data.length() % i;
+			if(temp == 0)
+			{
+				gridLength = i;
+				break;
+			}
+		}
+		
+		//Set Width (Smalles possible number)
+		for(int i = 1; i < 10; i++)
+		{
+			temp = gridLength * i;
+			if(temp == data.length())
+			{
+				gridHeight = i;
+				break;
+			}
+		}
+	}
+	
+	else
+	{
+		cout << "Data String ("<< data <<") is not in the 4 - 1024 range. \n Please enter data string in that range!" << endl;	
+		system("pause");
+		menu();
+	}
+}
+
+void decoder::check_Vertical()
+{
+	string temp;
+	string lastRow;
+	int columnIndex;
+	char lastChar;
+	int errorsCounter = 0;
+	char parity;
+	bool correctSequence = false;
+	char checkValue;
+	
+	//Go to last row and grab bit
+	lastRow = parity_Array[gridHeight - 1];
+	//cout << "Last Row: " << lastRow << endl;
+	
+	//Grab column to evaluate (minus the last row)
+	for(int i = 0; i < (gridLength); i++)
+	{
+		//cout << i << endl;
+		//Set check value to column to check
+		checkValue = lastRow.at(i);
+		//cout << "Check Value: " << checkValue << endl;
+
+		
+		//Loop through each column and count 1s
+		for(int j = 0; j < parity_Array[i].length(); j++)
+		{
+			temp = parity_Array[i].at(j);
+			if(temp == "1")
+				Counting_ones++;
+		}
+		
+		//Detecting bad bit		
+		bool flag = false;
+		
+		//Determine parity to be expected		
+		if ((Counting_ones % 2) == 0)
+		{
+			parity = '0';
+		}
+		else if ((Counting_ones % 2) == 1)
+		{
+			parity = '1';
+		}
+		
+		//Check last character with expected parity
+		//checkvalue is the last bit grabbed at the beginning
+		//compare parity which is from the Counting_ones to CheckValue
+		if(checkValue != parity)
+		{
+			posBad_BitVertical = i;
+			vertical_badBits++;
+		}
+		
+		//Reset Variables
+		Counting_ones = 0;
+	}
+	
+	cout << "Number of Vertical bad bits: " << vertical_badBits << endl;
+	//Show if sequence correct
+
+}
+void decoder::check_Horizontal()
+{
+	string temp;
+	char lastChar;
+	int errorsCounter = 0;
+	char parity;
+	bool correctSequence = false;
+	
+	//Loop cycles through each string index of parity Array
+	for(int i = 0; i < (gridHeight); i++)
+	{
+		//Get last char of the string and assign it
+		temp = parity_Array[i];
+		lastChar = temp.at(temp.length() - 1);
+
+			
+		//Loop cycles through each character of string (not including parity bit)
+		for(int charPlace = 0; charPlace < (parity_Array[i].length() - 1); charPlace++){
+			
+			//if char equivalent to 1 then increase Counting_ones
+			if(parity_Array[i].at(charPlace) == '1')
+				Counting_ones++;
+		}		
+		
+		//Determine parity to be expected		
+		if ((Counting_ones % 2) == 0)
+		{
+			parity = '0';
+		}
+		else if ((Counting_ones % 2) == 1)
+		{
+			parity = '1';
+		}
+		
+		//Check last character with expected parity
+		if(lastChar != parity)
+		{
+			posBad_Bit = i;
+			hor_badBits++;
+		}
+		
+		//Reset Counting_ones when move on to next string in array
+		Counting_ones = 0;
+	}
+	
+	
+	cout << "Number of Horizontal bad bits: " << hor_badBits << endl;
+	//Show if sequence correct
+	if(hor_badBits == 0)
+	{
+		correctSequence = true;
+	}
+}
+
+void decoder::print_Original()
+{
+	string decodedData = data;
+	string removeParity;
+	
+	//Remove vertical parity row
+	gridHeight -= 1;	//Decrease height by 1 to avoid printing last row of parity bits
+	
+	//Remove horizontal parity column
+	for(int i = 0; i < gridHeight; i++)
+	{
+		removeParity = parity_Array[i];
+		removeParity = removeParity.substr(0, removeParity.length() - 1);
+		
+		parity_Array[i] = removeParity;
+	}
+	
+	cout << "Originial CODEWORD after 2D Decoding: " << endl;
+	for(int i = 0; i < gridHeight; i++)
+	{
+		cout << parity_Array[i] << endl;
+	}
+}
+
+void decoder::correct_2DParity()
+{
+	
+	//If bad bits counter == 1 go to cordinate and invert but
+	if((hor_badBits == 1) && (vertical_badBits == 1))
+	{
+		// go to the location
+		if(parity_Array[posBad_Bit].at(posBad_BitVertical) == '0')
+		{
+			parity_Array[posBad_Bit].at(posBad_BitVertical) = '1';	
+		}
+		else
+		{
+			parity_Array[posBad_Bit].at(posBad_BitVertical) = '0';		
+		}	
+	}
+	else
+	cout << "More than one parity bit error encountered, codeword has not been decoded corretly." << endl;
+	
+	//If greater than 1; say more than one bad bit detected and output uncorrected string
+}
+
+void decoder::dec2D_Parity()
+{
+	int index = 0;			//Place in array to assign string of bits
+	string temp = "";		//Forms horizontal rows 
+	int sizeCounter = 0;	//Keeps track of string size
+	Counting_ones = 0;	
+	
+	//Set Grid Dimensions
+	setDimensions();
+	
+	//Assign to array
+	for(int i = 0; i < data.length(); i++)
+	{
+		temp = temp + data.at(i);
+		//sizeCounter++;
+		
+		if(temp.length() == gridLength)
+		{
+			parity_Array[index] = temp;
+			index++;
+			
+			//Reset values
+			temp = "";
+			//sizeCounter = 0;
+		}
+	}
+	
+	//Print Before
+	cout << "Before removing 2D parity: " << endl;
+	for(int i = 0; i < gridHeight; i++)
+	{
+		cout << parity_Array[i] << endl;
+	}
+	
+	check_Horizontal();
+	check_Vertical();
+	correct_2DParity();
+	print_Original();
+	
+}
+
+int main()
+{
+	decoder d;
+	int choice;
+	char userChoice;
+
+	choice = menu();
+
+	d.loadFile();
+	
+	if (choice == 0)
+	{
+		d.decode_Hamming();
+	}
+		
+	else
+	{
+		d.dec2D_Parity();
+	}
+			
+	system("pause");
+	return 0;
+	
+}
+
+
