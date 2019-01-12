@@ -1,0 +1,42 @@
+// Binary Search
+#include <iostream>
+#include <vector>
+
+using namespace std;
+
+int main() {
+   vector<int> myVector;
+   bool found = false;
+   
+   int given;
+   
+   cout << "Please input the number to find in vector?";
+   cin >> given;
+   cout << endl;
+   
+   myVector.push_back(2);
+   myVector.push_back(33);
+   myVector.push_back(89);
+   myVector.push_back(176);
+   myVector.push_back(500);
+
+   int first = 0;
+   int last = myVector.size()-1;
+
+   int mid, loopCounter =0;
+   while (!found && first <= last) {
+      loopCounter++;
+      mid = (first + last) / 2;
+   
+      if (myVector[mid] == given) {
+         found = true;
+         cout << "FOUND\n";
+      }   
+      else if (myVector[mid] > given)
+         last = mid - 1;		// new list first = 0, last = mid -1
+     else 
+        first = mid + 1;
+   }   
+   if (!found) cout << "NOT FOUND\n";    
+   cout << "Loop counter is " << loopCounter << endl;
+}
